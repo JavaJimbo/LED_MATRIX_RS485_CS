@@ -1,0 +1,31 @@
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-23-19\bin\Debug\COM Port Terminal.exe.config
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-23-19\obj\Debug\COM Port Terminal.exe
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-23-19\obj\Debug\COM Port Terminal.pdb
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-23-19\bin\Debug\COM Port Terminal.exe
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-23-19\bin\Debug\COM Port Terminal.pdb
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-23-19\obj\Debug\COMPortTerminal.MainForm.resources
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-23-19\obj\Debug\COMPortTerminal.PortSettingsDialog.resources
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-23-19\obj\Debug\COMPortTerminal.Properties.Resources.resources
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-23-19\obj\Debug\Robotnik CSharp Master.csproj.GenerateResource.Cache
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-24-19\bin\Debug\COM Port Terminal.exe.config
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-24-19\obj\Debug\COM Port Terminal.exe
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-24-19\obj\Debug\COM Port Terminal.pdb
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-24-19\bin\Debug\COM Port Terminal.exe
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-24-19\bin\Debug\COM Port Terminal.pdb
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-24-19\obj\Debug\COMPortTerminal.MainForm.resources
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-24-19\obj\Debug\COMPortTerminal.PortSettingsDialog.resources
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-24-19\obj\Debug\COMPortTerminal.Properties.Resources.resources
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master 3-24-19\obj\Debug\Robotnik CSharp Master.csproj.GenerateResource.Cache
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\bin\Debug\COM Port Terminal.exe.config
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\bin\Debug\COM Port Terminal.exe
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\bin\Debug\COM Port Terminal.pdb
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\obj\Debug\COMPortTerminal.MainForm.resources
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\obj\Debug\COMPortTerminal.PortSettingsDialog.resources
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\obj\Debug\COMPortTerminal.Properties.Resources.resources
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\obj\Debug\Robotnik CSharp Master.csproj.GenerateResource.Cache
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\obj\Debug\COM Port Terminal.exe
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\obj\Debug\COM Port Terminal.pdb
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\obj\Debug\Robotnik CSharp Master.csprojResolveAssemblyReference.cache
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\LED_MATRIX_RS485_C#\bin\Debug\COM Port Terminal.exe.config
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\LED_MATRIX_RS485_C#\obj\Debug\COM Port Terminal.exe
+C:\Users\Jim\Documents\Visual Studio 2015\Projects\LED_MATRIX_RS485_C#\obj\Debug\COM Port Terminal.pdb
