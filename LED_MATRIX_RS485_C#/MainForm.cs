@@ -14,8 +14,11 @@
  * 04-16-19: Works with panels but color translation looks lousy.
  * 04-20-19: 
  * 04-22-19: Works with both 16x32 and 32x32 LED panels, using RS485
- *            Targets work, but lines appear in black rings. NOt doing anything with rotating images yet.
- *            
+ *            Targets work, but lines appear in black rings. Not doing anything with rotating images yet.
+ * 04-23-19: Got rid of unnecessary serial port stuff.
+ * 04-24-19: TEST button manually creates white rings of increasing size. 
+ *           Line errors for some reason aren't appearing, but still happen in target loop.
+ * 04-28-19: Fixed bugs in Target code. Works great with 8 bit color on matrix boards.
  */
 
 #define USE_SERIAL
@@ -78,13 +81,12 @@ namespace COMPortTerminal
         public const int TOP_MARGIN = 40;
         public const int CX_OFFSET = 100;
         public const int CY_OFFSET = 100;
-        // public const int LEDPanel.MAXCOLOR = 16;
         public const double PI = 3.14159265358979;
         public const double TORADIANS = (PI / 180);
         public const double TODEGREES = (180 / PI);
         public const int MAXRADIUS = 100;
-        public const int MATRIX_WIDTH = 200;    // MAXRADIUS * 2;
-        public const int MATRIX_HEIGHT = 200;   // MAXRADIUS * 2;
+        public const int MATRIX_WIDTH = MAXRADIUS * 2;
+        public const int MATRIX_HEIGHT = MAXRADIUS * 2;
         public const int MATRIX_DATASIZE = (MATRIX_WIDTH * MATRIX_HEIGHT * NUMCHANNELS);
         public const int MAX_X = MAXRADIUS - 1;
         public const int MAX_Y = MAXRADIUS - 1;
@@ -96,18 +98,16 @@ namespace COMPortTerminal
         public const int BITMAP_HEIGHT = 800;
         public const int BITMAP_TOTAL_SIZE = (BITMAP_WIDTH * BITMAP_HEIGHT * 3) + BITMAP_HEADER_SIZE;
         public const int BITMAP_DATA_SIZE = (BITMAP_WIDTH * BITMAP_HEIGHT * 3);
-        public const int MAX_ANGLE = 1440;
-        public const double ANGLE_INCREMENT = (double)0.25;
+        public const int MAX_ANGLE = (360 * 4);
+        public const double ANGLE_INCREMENT = (double) 0.25;
         public const int RING_WIDTH = 5;
+        public int colorIndex = 0;
 
         int StartRadius = 6;
         int StopRadius = 7;
-        // public System.Drawing.Color[] colorWheel = new System.Drawing.Color[LEDPanel.MAXCOLOR];
         public bool[] colorUsed = new bool[LEDPanel.MAXCOLOR];
         public int[] RingWidth = new int[LEDPanel.MAXCOLOR];
         public bool[] NewColor = new bool[LEDPanel.MAXCOLOR];
-        public double[] CosTable = new double[MAX_ANGLE];
-        public double[] SinTable = new double[MAX_ANGLE];
         public Ring[] Target;
         public int TargetColorIndex = 0;
         public int FirstRadius = 0;
@@ -116,7 +116,10 @@ namespace COMPortTerminal
         Byte[] NewBitmapData = new Byte[BITMAP_TOTAL_SIZE];
         public int TestAngle = 0;
         public int PreviousAngle = 0;
-        bool SerialPortsOpen = false;
+        bool SerialPortsOpen = false;        
+        public byte ColorTestIndex = 0;
+        public int PanelTestIndex = 0;
+        public int RadiusTestIndex = 0;
 
         public byte[,] arrPanelInit = {
                     {1, 0, LEDPanel.HORIZONTAL, 64, 0}, {1, 1, LEDPanel.HORIZONTAL, 80, 0 }, {1, 2, LEDPanel.HORIZONTAL, 64, 32 },{1, 3, LEDPanel.HORIZONTAL, 80, 32},
@@ -127,14 +130,9 @@ namespace COMPortTerminal
                     {6, 0, LEDPanel.HORIZONTAL, 0, 64}, {6, 1, LEDPanel.HORIZONTAL, 16, 64},{6, 2, LEDPanel.HORIZONTAL, 0, 96}, {6, 3, LEDPanel.HORIZONTAL, 16, 96},
                     };
 
-        //{5, 0, LEDPanel.HORIZONTAL, 0, 0}, {5, 0, LEDPanel.HORIZONTAL, 16, 0},{5, 1, LEDPanel.HORIZONTAL, 0, 32}, {5, 1, LEDPanel.HORIZONTAL, 16, 32},
-        //{6, 0, LEDPanel.HORIZONTAL, 0, 64}, {6, 0, LEDPanel.HORIZONTAL, 16, 64},{6, 1, LEDPanel.HORIZONTAL, 0, 96}, {6, 1, LEDPanel.HORIZONTAL, 16, 96},
-
-
         LEDPanel[] MyPanels = new LEDPanel[LEDPanel.NUMPANELS];
         CRC MyCRC = new CRC();
-        public byte[,,] matrix = new byte[MATRIX_HEIGHT, MATRIX_WIDTH, NUMCHANNELS];
-
+        
         const byte STX = (byte)'>';
         const byte DLE = (byte)'/';
         const byte ETX = (byte)'\r';
@@ -144,16 +142,11 @@ namespace COMPortTerminal
 
         convertType convertToInteger;
 
-        // private List<Point> points; // Points of currently drawing line
-        // private Pen pen; // Pen we will use to draw
         public Byte[] bitmapData;
 
         public PolarPointXY[,] PolarMatrix, RotateMatrix;
         public XYMatrixPoint[,] XYmatrix;
-
-        // System.Drawing.Color AQUAMARINE, MAGENTA, PURPLE, CYAN, LIME, YELLOW, ORANGE, RED, GREEN, BLUE, PINK, LAVENDER, TURQUOISE, WHITE, GRAY, DARKGRAY, BLACK;
-        int ColorIndex = 0;
-
+        
         Bitmap Maribmp = (Bitmap)Bitmap.FromFile("C:\\Temp\\Marilyn.bmp");
         MemoryStream ms = new MemoryStream();
         Bitmap bmpDisplay;
@@ -162,16 +155,7 @@ namespace COMPortTerminal
         public Random rand = new Random();
         int ClosestToCenter;
         public Byte[] DisplayBitmap;
-        public int colorIndex = 0, startIndex = 0;
-
-
-        public void initMatrix()
-        {
-            for (int row = 0; row < MATRIX_HEIGHT; row++)
-                for (int col = 0; col < MATRIX_WIDTH; col++)
-                    for (int channel = 0; channel < NUMCHANNELS; channel++)
-                        matrix[row, col, channel] = 0x00;
-        }
+        
 
         UInt32 getLongInteger(byte b0, byte b1, byte b2, byte b3)
         {
@@ -281,12 +265,8 @@ namespace COMPortTerminal
             txtTimer.Text = strTime;
 
             if (OpMode == (int)Mode.RUN_TARGET) DisplayTarget();
-            // else DisplayRotate();
-            for (row = 0; row < MATRIX_HEIGHT; row++)
-                for (col = 0; col < MATRIX_WIDTH; col++)
-                    XYmatrix[col,row] = 
 
-            for (i = 0; i < LEDPanel.NUMPANELS; i++) MyPanels[i].setPanelColorIndex(ref XYmatrix);
+            for (i = 0; i < LEDPanel.NUMPANELS; i++) MyPanels[i].CopyMatrixToPanel(ref XYmatrix);
 
 #if USE_SERIAL
             byte[] outPacket = new byte[MAXPACKETSIZE];
@@ -327,14 +307,10 @@ namespace COMPortTerminal
 
         public void DisplayTarget()
         {
-            int colorIndex;
+           
             int i, inner, outer;
 
-            startIndex = rand.Next(0, LEDPanel.MAXCOLOR);
-            if (startIndex >= LEDPanel.MAXCOLOR) startIndex = 0;
-
             FirstRadius++;
-            colorIndex = startIndex;
             if (FirstRadius >= Target[0].width)
             {
                 FirstRadius = 1;
@@ -354,13 +330,11 @@ namespace COMPortTerminal
                 }
                 // Create new ring #0
                 Target[0].width = rand.Next(1, 20);
-                
-                colorIndex++;
-                if (colorIndex >= LEDPanel.MAXCOLOR) colorIndex = 0;
 
-                Target[0].colorIndex = colorIndex;
-                
+                TargetColorIndex++;
                 if (TargetColorIndex >= LEDPanel.MAXCOLOR) TargetColorIndex = 0;
+
+                Target[0].colorIndex = TargetColorIndex;
             }
 
             inner = 0;
@@ -412,9 +386,7 @@ namespace COMPortTerminal
             Byte redByte, greenByte, blueByte;
             double AngleRadians, AngleDegrees;
             InitializeComponent(); if (transDefaultFormMainForm == null) transDefaultFormMainForm = this;
-
-            InitializeLookUpTables();
-
+                        
             BitmapHeader = new Byte[BITMAP_HEADER_SIZE];
             BitmapHeader[0x00] = (Byte)'B';
             BitmapHeader[0x01] = (Byte)'M';
@@ -433,14 +405,16 @@ namespace COMPortTerminal
             setLongBytes((UInt32)0, ref BitmapHeader[0x2E], ref BitmapHeader[0x2F], ref BitmapHeader[0x30], ref BitmapHeader[0x31]); // Colors in palette
             setLongBytes((UInt32)0, ref BitmapHeader[0x32], ref BitmapHeader[0x33], ref BitmapHeader[0x34], ref BitmapHeader[0x35]); // Important colors
 
+            int testnum = 123;
+            Console.WriteLine("Test Num =  {0:D}", testnum++);
+            Console.WriteLine("Test Num =  {0:D}", testnum++);
+            Console.WriteLine("Test Num =  {0:D}", testnum++);
+            Console.Write("{0:D}, ", testnum++);
+
 
             this.Size = new System.Drawing.Size(1500, 1000);
 
-            // btnOpenOrClosePort.Click += new System.EventHandler(btnOpenOrClosePort_Click);
-            // btnPort.Click += new System.EventHandler(btnPort_Click);
             Load += new System.EventHandler(Form1_Load);
-            rtbMonitor.TextChanged += new System.EventHandler(rtbMonitor_TextChanged);
-            // tmrLookForPortChanges.Tick += new System.EventHandler(tmrLookForPortChanges_Tick);
             timerRobotnik.Interval = 100;
             timerRobotnik.Tick += new System.EventHandler(timerRobotnik_Tick);
 
@@ -493,7 +467,8 @@ namespace COMPortTerminal
                 int BoardNumber = MyPanels[k].getBoardNumber();
                 int BoardID = MyPanels[k].getBoardNumber() * 16;
             }
-                initMatrix();
+
+            // initMatrix();
 
             
             //MemoryStream ms = new MemoryStream();
@@ -517,7 +492,7 @@ namespace COMPortTerminal
             picDrawing.Image = bmpDisplay;
 
             btnStartStop.Text = "START TARGET";
-            btnTest.Text = "START ROTATE";
+            // btnTest.Text = "START ROTATE";
         }
         
         int ColorBar(ref Color[,] ptrMatrix)
@@ -586,385 +561,6 @@ namespace COMPortTerminal
         public int minutes = 0, seconds = 0, tenthSeconds = 0;
 
 
-        /// <summary> 
-        /// Perform functions on the application's form.
-        /// Used to access the form from a different thread.
-        /// See AccessFormMarshal().
-        /// </summary>
-        /// 
-        /// <param name="action"> a string that names the action to perform on the form </param>  
-        /// <param name="formText"> text that the form displays </param> 
-        /// <param name="textColor"> a system color for displaying text </param>
-
-        private void AccessForm(string action, string formText, Color textColor)
-        {
-            switch (action)
-            {
-                case "AppendToMonitorTextBox":
-                    //  Append text to the rtbMonitor textbox using the color for received data.
-                    rtbMonitor.SelectionColor = colorReceive;
-                    // rtbMonitor.AppendText( formText );  // INCOMING RECEIVED TEXT GETS HANDLED HERE $$$$
-                    // btnStartStop.Text = "START TARGET";
-                    rtbMonitor.SelectionColor = colorTransmit;
-                    //  Trim the textbox's contents if needed.
-                    if (rtbMonitor.TextLength > maximumTextBoxLength) TrimTextBoxContents();
-                    break;
-
-                case "DisplayStatus":
-                    //  Add text to the rtbStatus textbox using the specified color.
-                    DisplayStatus(formText, textColor);
-                    break;
-
-                case "DisplayCurrentSettings":
-                    //  Display the current port settings in the ToolStripStatusLabel.
-                    DisplayCurrentSettings();
-                    break;
-
-                default:
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Enables accessing the form from another thread.
-        /// The parameters match those of AccessForm() 
-        /// </summary>
-        /// 
-        /// <param name="action"> a string that names the action to perform on the form </param>  
-        /// <param name="formText"> text that the form displays </param> 
-        /// <param name="textColor"> a system color for displaying text </param>
-
-        private void AccessFormMarshal(string action, string textToDisplay, Color textColor)
-        {
-            AccessFormMarshalDelegate AccessFormMarshalDelegate1;
-
-            AccessFormMarshalDelegate1 = new AccessFormMarshalDelegate(AccessForm);
-
-            object[] args = { action, textToDisplay, textColor };
-
-            //  Call AccessForm, passing the parameters in args.
-
-            base.Invoke(AccessFormMarshalDelegate1, args);
-        }
-
-        /// <summary>
-        /// Display the current port parameters on the form.
-        /// </summary>
-
-        private void DisplayCurrentSettings()
-        {
-            string selectedPortState = "";
-
-            if (ComPorts.comPortExists)
-            {
-                if ((!((UserPort1.SelectedPort == null))))
-                {
-                    if (UserPort1.SelectedPort.IsOpen)
-                    {
-                        selectedPortState = "OPEN";
-                        btnOpenOrClosePort.Text = ButtonTextClosePort;
-                    }
-                    else
-                    {
-                        selectedPortState = "CLOSED";
-                        btnOpenOrClosePort.Text = ButtonTextOpenPort;
-                    }
-                }
-
-                UpdateStatusLabel(System.Convert.ToString(MyPortSettingsDialog.cmbPort.SelectedItem) + "   " + System.Convert.ToString(MyPortSettingsDialog.cmbBitRate.SelectedItem) + "   N 8 1   Handshake: " + MyPortSettingsDialog.cmbHandshaking.SelectedItem.ToString() + "   " + selectedPortState);
-            }
-            else
-            {
-                DisplayStatus(ComPorts.noComPortsMessage, Color.Red);
-                UpdateStatusLabel("");
-            }
-        }
-
-        /// <summary>
-        /// Provide a central mechanism for displaying exception information.
-        /// Display a message that describes the exception.
-        /// </summary>
-        /// 
-        /// <param name="moduleName"> the module where the exception occurred.</param>
-        /// <param name="ex"> the exception </param>
-
-        private void DisplayException(string moduleName, Exception ex)
-        {
-            string errorMessage = null;
-
-            errorMessage = "Exception: " + ex.Message + " Module: " + moduleName + ". Method: " + ex.TargetSite.Name;
-
-            DisplayStatus(errorMessage, Color.Red);
-
-            //  To display errors in a message box, uncomment this line:
-            // MessageBox.Show(errorMessage)            
-        }
-
-        /// <summary>
-        /// Displays text in a richtextbox.
-        /// </summary>
-        /// 
-        /// <param name="status"> the text to display.</param>
-        /// <param name="textColor"> the text color. </param>
-
-        private void DisplayStatus(string status, Color textColor)
-        {
-            rtbStatus.ForeColor = textColor;
-            rtbStatus.Text = status;
-        }
-
-        /// <summary>
-        /// Get user preferences for the COM port and parameters.
-        /// See SetPreferences for more information.
-        /// </summary>
-
-        private void GetPreferences()
-        {
-            UserPort1.SavedPortName = Settings.Default.ComPort;
-            UserPort1.SavedBitRate = Settings.Default.BitRate;
-            UserPort1.SavedHandshake = Settings.Default.Handshaking;
-            savedOpenPortOnStartup = Settings.Default.OpenComPortOnStartup;
-        }
-
-        /// <summary>
-        /// Initialize elements on the main form.
-        /// </summary>
-
-        private void InitializeDisplayElements()
-        {
-            //  The TrimTextboxContents routine trims a richtextbox with more data than this:
-
-            maximumTextBoxLength = 10000;
-            rtbMonitor.SelectionColor = colorTransmit;
-        }
-
-        /// <summary>
-        ///  Determine if the textbox's TextChanged event occurred due to new user input.
-        /// If yes, get the input and write it to the COM port.
-        /// </summary>
-
-        private void ProcessTextboxInput()  // $$$$
-        {
-            IAsyncResult ar = null;
-            string msg = null;
-            int textLength = 0;
-            string userInput = null;
-
-
-            //  Find out if the textbox contains new user input.
-            //  If the new data is data received on the COM port or if no COM port exists, do nothing.
-
-            if (((rtbMonitor.Text.Length > userInputIndex + UserPort1.ReceivedDataLength) & ComPorts.comPortExists))
-            {
-                //  Retrieve the contents of the textbox.
-
-                userInput = rtbMonitor.Text;
-
-                //  Get the length of the new text.
-
-                textLength = userInput.Length - userInputIndex;
-
-                //  Extract the unread input.
-
-                userInput = rtbMonitor.Text.Substring(userInputIndex, textLength);
-
-                //  Create a message to pass to the Write operation (optional). 
-                //  The callback routine can retrieve the message when the write completes.
-
-                msg = DateTime.Now.ToString();
-
-                //  Send the input to the COM port.
-                //  Use a different thread so the main application doesn't have to wait
-                //  for the write operation to complete.                
-
-                UserPort1.WriteToComPortDelegate1 = new ComPorts.WriteToComPortDelegate(UserPort1.WriteToComPort);
-
-                ar = UserPort1.WriteToComPortDelegate1.BeginInvoke(userInput, new AsyncCallback(UserPort1.WriteCompleted), msg);   // $$$$
-
-                //  To use the same thread for writes to the port,
-                //  comment out the statement above and uncomment the statement below.
-                // UserPort1.WriteToComPort(userInput)C:\Users\Jim\Documents\Visual Studio 2015\Projects\Robotnik C# Master\Settings.cs
-
-                AccessForm("UpdateStatusLabel", "", Color.Black);
-            }
-            else
-            {
-                //  Received bytes displayed in the text box are ignored,
-                //  but we need to reset the value that indicates
-                //  the number of received but not processed bytes.
-
-                UserPort1.ReceivedDataLength = 0;  // $$$$
-            }
-
-            if (rtbMonitor.TextLength > maximumTextBoxLength)
-            {
-                TrimTextBoxContents();
-            }
-
-            //  Update the value that indicates the last character processed.
-
-            userInputIndex = rtbMonitor.Text.Length;
-        }
-
-        /// <summary> 
-        /// Save user preferences for the COM port and parameters.
-        /// </summary>
-
-        private void SavePreferences()
-        {
-            // To define additional settings, in the Visual Studio IDE go to
-            // Solution Explorer > right click on project name > Properties > Settings.
-
-            if (MyPortSettingsDialog.cmbPort.SelectedIndex > -1)
-            {
-                // The system has at least one COM port.
-
-                Settings.Default.ComPort = MyPortSettingsDialog.cmbPort.SelectedItem.ToString();
-                Settings.Default.BitRate = (int)MyPortSettingsDialog.cmbBitRate.SelectedItem;
-                Settings.Default.Handshaking = (Handshake)MyPortSettingsDialog.cmbHandshaking.SelectedItem;
-                Settings.Default.OpenComPortOnStartup = MyPortSettingsDialog.chkOpenComPortOnStartup.Checked;
-
-                Settings.Default.Save();
-            }
-        }
-
-        /// <summary>
-        /// Use stored preferences or defaults to set the initial port parameters.
-        /// </summary>
-
-        private void SetInitialPortParameters()
-        {
-            GetPreferences();
-
-            if (ComPorts.comPortExists)
-            {
-                //  Select a COM port and bit rate using stored preferences if available.
-                UsePreferencesToSelectParameters();
-
-                //  Save the selected indexes of the combo boxes.
-                MyPortSettingsDialog.SavePortParameters();
-            }
-            else
-            {
-                //  No COM ports have been detected. Watch for one to be attached.
-                tmrLookForPortChanges.Start();
-                DisplayStatus(ComPorts.noComPortsMessage, Color.Red);
-            }
-            UserPort1.ParameterChanged = false;
-        }
-
-        /// <summary>
-        /// Saves the passed port parameters.
-        /// Called when the user clicks OK on PortSettingsDialog.
-        /// </summary>
-
-        private void SetPortParameters(string userPort, int userBitRate, Handshake userHandshake)
-        {
-            try
-            {
-                //  Don't do anything if the system has no COM ports.
-                if (ComPorts.comPortExists)
-                {
-                    if (MyPortSettingsDialog.ParameterChanged())
-                    {
-                        //  One or more port parameters has changed.
-                        if ((string.Compare(MyPortSettingsDialog.oldPortName, userPort, true) != 0))
-                        {
-                            //  The port has changed.
-                            //  Close the previously selected port.
-                            UserPort1.PreviousPort = UserPort1.SelectedPort;
-                            UserPort1.CloseComPort(UserPort1.SelectedPort);
-
-                            //  Set SelectedPort to the current port.
-                            UserPort1.SelectedPort.PortName = userPort;
-                            UserPort1.PortChanged = true;
-                        }
-
-                        //  Set other port parameters.
-                        UserPort1.SelectedPort.BaudRate = userBitRate;
-                        UserPort1.SelectedPort.Handshake = userHandshake;
-                        MyPortSettingsDialog.SavePortParameters();
-                        UserPort1.ParameterChanged = true;
-                    }
-                    else
-                    {
-                        UserPort1.ParameterChanged = false;
-                    }
-                }
-            }
-            catch (InvalidOperationException ex)
-            {
-                UserPort1.ParameterChanged = true;
-                DisplayException(ModuleName, ex);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                UserPort1.ParameterChanged = true;
-                DisplayException(ModuleName, ex);
-                //  This exception can occur if the port was removed. 
-                //  If the port was open, close it.
-                UserPort1.CloseComPort(UserPort1.SelectedPort);
-            }
-            catch (System.IO.IOException ex)
-            {
-                UserPort1.ParameterChanged = true;
-                DisplayException(ModuleName, ex);
-            }
-        }
-
-        /// <summary>
-        /// Trim a richtextbox by removing the oldest contents.
-        /// </summary>
-        /// 
-        /// <remarks >
-        /// To trim the box while retaining any formatting applied to the retained contents,
-        /// create a temporary richtextbox, copy the contents to be preserved to the 
-        /// temporary richtextbox,and copy the temporary richtextbox back to the original richtextbox.
-        /// </remarks>
-
-        private void TrimTextBoxContents()
-        {
-            RichTextBox rtbTemp = new RichTextBox();
-            int textboxTrimSize = 0;
-
-            //  When the contents are too large, remove half.
-            textboxTrimSize = maximumTextBoxLength / 2;
-            rtbMonitor.Select(rtbMonitor.TextLength - textboxTrimSize + 1, textboxTrimSize);
-            rtbTemp.Rtf = rtbMonitor.SelectedRtf;
-            rtbMonitor.Clear();
-            rtbMonitor.Rtf = rtbTemp.Rtf;
-            rtbTemp = null;
-            rtbMonitor.SelectionStart = rtbMonitor.TextLength;
-        }
-
-        /// <summary>
-        /// Set the text in the ToolStripStatusLabel.
-        /// </summary>
-        /// 
-        /// <param name="status"> the text to display </param>
-
-        private void UpdateStatusLabel(string status)
-        {
-            ToolStripStatusLabel1.Text = status;
-            ToolStripStatusLabel1.Update();
-        }
-
-        /// <summary>
-        /// Set the user preferences or default values in the combo boxes and ports array
-        /// using stored preferences or default values.
-        /// </summary>
-
-        private void UsePreferencesToSelectParameters()
-        {
-            int myPortIndex = 0;
-            myPortIndex = MyPortSettingsDialog.SelectComPort(UserPort1.SavedPortName);
-            MyPortSettingsDialog.SelectBitRate(UserPort1.SavedBitRate);
-            UserPort1.SelectedPort.BaudRate = (int)MyPortSettingsDialog.cmbBitRate.SelectedItem;
-            MyPortSettingsDialog.SelectHandshaking(UserPort1.SavedHandshake);
-            UserPort1.SelectedPort.Handshake = (Handshake)MyPortSettingsDialog.cmbHandshaking.SelectedItem;
-            MyPortSettingsDialog.chkOpenComPortOnStartup.Checked = savedOpenPortOnStartup;
-        }
-
         /// <summary>
         /// Look for COM ports and display them in the combo box.
         /// </summary>
@@ -997,32 +593,9 @@ namespace COMPortTerminal
             MyPortSettingsDialog = new PortSettingsDialog();
             tmrLookForPortChanges.Interval = 1000;
             tmrLookForPortChanges.Stop();
-            InitializeDisplayElements();
-            SetInitialPortParameters();
-            if (ComPorts.comPortExists)
-            {
-                UserPort1.SelectedPort.PortName = ComPorts.myPortNames[MyPortSettingsDialog.cmbPort.SelectedIndex];
-                //  A check box enables requesting to open the selected COM port on start up.
-                //  Otherwise the application opens the port when the user clicks the Open Port
-                //  button or types text to send. 
-                if (MyPortSettingsDialog.chkOpenComPortOnStartup.Checked)
-                {
-                    UserPort1.PortOpen = UserPort1.OpenComPort();
-                    AccessForm("DisplayCurrentSettings", "", Color.Black);
-                    AccessForm("DisplayStatus", "", Color.Black);
-                }
-                else
-                {
-                    DisplayCurrentSettings();
-                }
-            }
 
             //  Specify the routines that execute on events in other modules.
             //  The routines can receive data from other modules. 
-
-            ComPorts.UserInterfaceData += new ComPorts.UserInterfaceDataEventHandler(AccessFormMarshal);
-            PortSettingsDialog.UserInterfaceData += new PortSettingsDialog.UserInterfaceDataEventHandler(AccessFormMarshal);
-            PortSettingsDialog.UserInterfacePortSettings += new PortSettingsDialog.UserInterfacePortSettingsEventHandler(SetPortParameters);
             timerRobotnik.Stop();
         }
 
@@ -1033,48 +606,8 @@ namespace COMPortTerminal
         private void Form1_FormClosing(object sender, System.Windows.Forms.FormClosingEventArgs e)
         {
             UserPort1.CloseComPort(UserPort1.SelectedPort);
-            SavePreferences();
         }
 
-        /// <summary>
-        /// Do whatever is needed with new characters in the textbox.
-        /// </summary>
-
-        private void rtbMonitor_TextChanged(System.Object sender, System.EventArgs e)
-        {
-            ProcessTextboxInput();
-        }
-
-        /// <summary>
-        /// Look for ports. If at least one is found, stop the timer and
-        /// select the saved port if possible or the first port.
-        /// This timer is enabled only when no COM ports are present.
-        /// </summary>
-
-        private void tmrLookForPortChanges_Tick(object sender, System.EventArgs e)
-        {
-            ComPorts.FindComPorts();
-
-            /*
-            if ( ComPorts.comPortExists ) 
-            {                 
-                tmrLookForPortChanges.Stop(); 
-                DisplayStatus( "COM port(s) found.", Color.Black ); 
-                
-                MyPortSettingsDialog.DisplayComPorts(); 
-                MyPortSettingsDialog.SelectComPort( UserPort1.SavedPortName ); 
-                MyPortSettingsDialog.SelectBitRate(UserPort1.SavedBitRate); 
-                MyPortSettingsDialog.SelectHandshaking( ( ( Handshake )( UserPort1.SavedHandshake ) ) ); 
-                
-                //  Set selectedPort.
-                
-                SetPortParameters( UserPort1.SavedPortName, UserPort1.SavedBitRate, ( ( Handshake )( UserPort1.SavedHandshake ) ) ); 
-                
-                DisplayCurrentSettings(); 
-                UserPort1.ParameterChanged = true; 
-            } 
-            */
-        }
 
         // Default instance for Form
 
@@ -1106,31 +639,6 @@ namespace COMPortTerminal
             TimeKeeper();
         }
 
-        void DrawPolarCircle(ref PolarPointXY[,] ptrPolar, int StartRadius, int StopRadius, int colorIndex)
-        {
-            int iAngleDegrees, iRadius, begin, end;
-            double AngleRadians, CosValue, SinValue, dblY, dblX;
-
-            if (StartRadius >= MAXRADIUS) return;
-            if (StopRadius >= MAXRADIUS) return;
-
-            if (StartRadius < StopRadius)
-            {
-                begin = StartRadius;
-                end = StopRadius;
-            }
-            else
-            {
-                end = StartRadius;
-                begin = StopRadius;
-            }
-
-            for (iRadius = begin; iRadius <= end; iRadius++)
-            {
-                for (int i = 0; i < MAX_ANGLE; i++)
-                    ptrPolar[i, iRadius].colorIndex = colorIndex;
-            }
-        }
 
         void MatrixToPolar(ref XYMatrixPoint[,] XYmatrix, ref PolarPointXY[,] ptrPolar)
         {
@@ -1273,6 +781,7 @@ namespace COMPortTerminal
 
         }
 
+
         private void btnOpenOrClosePort_Click_1(object sender, EventArgs e)
         {
 #if USE_SERIAL
@@ -1292,21 +801,6 @@ namespace COMPortTerminal
         }
         
 
-        private void btnTest_Click(object sender, EventArgs e)
-        {
-            if (timerRobotnik.Enabled == false)
-            {
-                timerRobotnik.Start();
-                OpMode = (int)Mode.RUN_ROTATE;
-                btnTest.Text = "STOP ROTATE";
-            }
-            else
-            {
-                timerRobotnik.Stop();
-                btnTest.Text = "START ROTATE";
-            }
-        }
-
 
         // MAX_ANGLE, MAXRADIUS
         void InitializePolarMatrix(ref PolarPointXY[,] ptrPolar, ref XYMatrixPoint[,] XYmatrix)
@@ -1316,8 +810,13 @@ namespace COMPortTerminal
 
             for (iAngle = 0; iAngle < MAX_ANGLE; iAngle++)
             {
-                CosValue = CosTable[iAngle];
-                SinValue = SinTable[iAngle];
+                dblAngleDegrees = (double)iAngle * ANGLE_INCREMENT;
+                AngleRadians = dblAngleDegrees * TORADIANS;
+
+                // CosValue = CosTable[iAngle];
+                CosValue = Math.Cos(AngleRadians);
+                //SinValue = SinTable[iAngle];
+                SinValue = Math.Sin(AngleRadians);
 
                 for (iRadius = 0; iRadius < MAXRADIUS; iRadius++)
                 {
@@ -1330,29 +829,209 @@ namespace COMPortTerminal
                     ptrPolar[iAngle, iRadius].X = intX;
                     ptrPolar[iAngle, iRadius].Y = intY;
                     int X = intX + X_OFFSET;
-                    int Y = intX + Y_OFFSET;
+                    int Y = intY + Y_OFFSET;
                     XYmatrix[X, Y].Angle = iAngle;
                     XYmatrix[X, Y].Radius = iRadius;
                     XYmatrix[X, Y].colorIndex = ptrPolar[iAngle, iRadius].colorIndex = LEDPanel.BLACK_INDEX;
                 }
             }
         }
-        // MAX_ANGLE, MAXRADIUS
-        void InitializeLookUpTables()
-        {
-            int iAngle, iRadius, intX = 0, intY = 0;
-            double AngleRadians, CosValue, SinValue, dblY = 0, dblX = 0, dblAngleDegrees = 0;
 
-            for (iAngle = 0; iAngle < MAX_ANGLE; iAngle++)
+        private void btnBlackout_Click(object sender, EventArgs e)
+        {
+            byte[] outPacket = new byte[4];
+
+            if (SerialPortsOpen)
             {
-                dblAngleDegrees = (double)iAngle * 0.25;
-                AngleRadians = dblAngleDegrees * TORADIANS;
-                CosValue = Math.Cos(AngleRadians);
-                CosTable[iAngle] = CosValue;
-                SinValue = Math.Sin(AngleRadians);
-                SinTable[iAngle] = SinValue;
+                try
+                {
+                    outPacket[0] = STX;
+                    outPacket[1] = (byte) '0';
+                    outPacket[2] = (byte) ' ';
+                    outPacket[3] = ETX;
+                    serialPort1.Write(outPacket, 0, 4);                    
+                }
+                catch
+                {
+                    try
+                    {
+                        serialPort1.DiscardInBuffer();
+                        serialPort1.DiscardOutBuffer();
+                        serialPort1.Close();
+                        SerialPortsOpen = false;
+                    }
+                    catch { }
+                }
             }
+
+        }
+
+        void SetColorPolar(ref PolarPointXY[,] ptrPolar, int colorIndex)
+        {
+            int i, iRadius;            
+
+            for (i = 0; i < MAX_ANGLE; i++)
+            {
+                for (iRadius = 0; iRadius < MAXRADIUS; iRadius++)
+                    ptrPolar[i, iRadius].colorIndex = colorIndex;
+            }
+        }
+
+
+
+        private void btnTest_Click(object sender, EventArgs e)
+        {
+            int iAngleDegrees, iRadius, begin, end, i;
+            double AngleRadians, CosValue, SinValue, dblY, dblX;
+            byte command, panelNumber, panelCommand;
+            byte[] outData = new byte[LEDPanel.PANELSIZE + 16];
+            byte[] arrPortInput = new byte[128];
+            int BoardNumber = 0, BoardID = 0;
+            int row, col;
+            int packetLength = 0;
+
+            SetColorPolar(ref PolarMatrix, LEDPanel.BLACK_INDEX);
+
+            RadiusTestIndex++;
+            if (RadiusTestIndex >= MAXRADIUS) RadiusTestIndex = 0;
+            DrawPolarCircle(ref PolarMatrix, RadiusTestIndex, RadiusTestIndex, LEDPanel.RED_INDEX);
+
+            //ColorTestIndex++;  if (ColorTestIndex >= LEDPanel.MAXCOLOR) ColorTestIndex = 0;
+            //PanelTestIndex++;  if(PanelTestIndex >= LEDPanel.NUMPANELS) PanelTestIndex = 0;
+            //MyPanels[PanelTestIndex].SetPanelColor(ColorTestIndex);
+
+            byte[] outPacket = new byte[MAXPACKETSIZE];
+            if (SerialPortsOpen)
+            {
+                try
+                {
+                    for (i = 0; i < LEDPanel.NUMPANELS; i++)
+                    {
+
+                        BoardNumber = MyPanels[i].getBoardNumber();
+
+                        // Shift Port ID to upper nibble
+                        BoardID = MyPanels[i].getBoardNumber() * 16;
+
+                        // panelNumber normally equals Port ID in upper nibble and panel ID in lower nibble
+                        panelNumber = (byte)MyPanels[i].getPanelNumber();
+                        panelCommand = (byte)(BoardID | (int)panelNumber);
+
+                        packetLength = BuildPacket(0, panelCommand, ref MyPanels[i].arrPanelColorIndex, LEDPanel.PANELSIZE, ref outPacket);
+                        serialPort1.Write(outPacket, 0, packetLength);
+                    }
+                }
+                catch
+                {
+                    try
+                    {
+                        serialPort1.DiscardInBuffer();
+                        serialPort1.DiscardOutBuffer();
+                        serialPort1.Close();
+                        SerialPortsOpen = false;
+                    }
+                    catch { }
+                }
+            }
+
+            /*
+            if (timerRobotnik.Enabled == false)
+            {
+                timerRobotnik.Start();
+                OpMode = (int)Mode.RUN_ROTATE;
+                btnTest.Text = "STOP ROTATE";
+            }
+            else
+            {
+                timerRobotnik.Stop();
+                btnTest.Text = "START ROTATE";
+            }
+            */
+        }
+
+        void DrawPolarCircle(ref PolarPointXY[,] ptrPolar, int StartRadius, int StopRadius, int colorIndex)
+        {
+            int iAngleDegrees, iRadius, begin, end, i;
+            double AngleRadians, CosValue, SinValue, dblY, dblX;
+            byte command, panelNumber, panelCommand;
+            byte[] outData = new byte[LEDPanel.PANELSIZE + 16];
+            byte[] arrPortInput = new byte[128];
+            int BoardNumber = 0, BoardID = 0;
+            int row, col;
+            int packetLength = 0;
+
+
+            if (StartRadius >= MAXRADIUS) return;
+            if (StopRadius >= MAXRADIUS) return;
+
+            if (StartRadius <= StopRadius)
+            {
+                begin = StartRadius;
+                end = StopRadius;
+            }
+            else
+            {
+                end = StartRadius;
+                begin = StopRadius;
+            }
+
+            for (iRadius = begin; iRadius <= end; iRadius++)
+            {
+                for (i = 0; i < MAX_ANGLE; i++)
+                    ptrPolar[i, iRadius].colorIndex = colorIndex;                    
+            }
+
+            /*
+            PolarToMatrix(ref PolarMatrix, ref XYmatrix);
+            ConvertMatrixToBitmap(ref XYmatrix, ref NewBitmapData);
+            // Convert bitmap data array to stream
+            MemoryStream displayStream = new MemoryStream(NewBitmapData);
+            // Convert stream to bitmap
+            bmpDisplay = new Bitmap(System.Drawing.Image.FromStream(displayStream));
+            picDrawing.SizeMode = PictureBoxSizeMode.AutoSize;
+            picDrawing.Location = new Point(0, 0);
+            picDrawing.Image = bmpDisplay;
+
+            // Console.WriteLine("Test Num =  {0:D}", testnum++);
+            // Console.Write("{0:D}, ", testnum++);
+            
+            for (i = 0; i < LEDPanel.NUMPANELS; i++)
+                MyPanels[i].CopyMatrixToPanel(ref XYmatrix);
+
+            byte[] outPacket = new byte[MAXPACKETSIZE];
+            if (SerialPortsOpen)
+            {
+                try
+                {
+                    for (i = 0; i < LEDPanel.NUMPANELS; i++)
+                    {
+
+                        BoardNumber = MyPanels[i].getBoardNumber();
+
+                        // Shift Port ID to upper nibble
+                        BoardID = MyPanels[i].getBoardNumber() * 16;
+
+                        // panelNumber normally equals Port ID in upper nibble and panel ID in lower nibble
+                        panelNumber = (byte)MyPanels[i].getPanelNumber();
+                        panelCommand = (byte)(BoardID | (int)panelNumber);
+
+                        packetLength = BuildPacket(0, panelCommand, ref MyPanels[i].arrPanelColorIndex, LEDPanel.PANELSIZE, ref outPacket);
+                        serialPort1.Write(outPacket, 0, packetLength);
+                    }
+                }
+                catch
+                {
+                    try
+                    {
+                        serialPort1.DiscardInBuffer();
+                        serialPort1.DiscardOutBuffer();
+                        serialPort1.Close();
+                        SerialPortsOpen = false;
+                    }
+                    catch { }
+                }
+            }
+            */
         }
     }   // End public partial class MainForm     
 }  // namespace COMPortTerminal
-

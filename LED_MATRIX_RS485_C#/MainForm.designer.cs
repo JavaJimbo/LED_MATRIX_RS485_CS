@@ -36,7 +36,6 @@ namespace COMPortTerminal
             this.rtbMonitor = new System.Windows.Forms.RichTextBox();
             this.rtbStatus = new System.Windows.Forms.RichTextBox();
             this.ToolStripStatusLabel1 = new System.Windows.Forms.StatusStrip();
-            this.btnPort = new System.Windows.Forms.Button();
             this.btnOpenOrClosePort = new System.Windows.Forms.Button();
             this.tmrLookForPortChanges = new System.Windows.Forms.Timer(this.components);
             this.txtTimer = new System.Windows.Forms.TextBox();
@@ -51,6 +50,7 @@ namespace COMPortTerminal
             this.serialPort4 = new System.IO.Ports.SerialPort(this.components);
             this.serialPort5 = new System.IO.Ports.SerialPort(this.components);
             this.serialPort6 = new System.IO.Ports.SerialPort(this.components);
+            this.btnBlackout = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.picDrawing)).BeginInit();
             this.SuspendLayout();
             // 
@@ -92,17 +92,6 @@ namespace COMPortTerminal
             this.ToolStripStatusLabel1.Size = new System.Drawing.Size(701, 22);
             this.ToolStripStatusLabel1.TabIndex = 9;
             this.ToolStripStatusLabel1.Text = "StatusStrip1";
-            // 
-            // btnPort
-            // 
-            this.btnPort.AutoSize = true;
-            this.btnPort.Location = new System.Drawing.Point(1012, 247);
-            this.btnPort.Name = "btnPort";
-            this.btnPort.Size = new System.Drawing.Size(167, 47);
-            this.btnPort.TabIndex = 10;
-            this.btnPort.Text = "Port Settings";
-            this.btnPort.UseVisualStyleBackColor = true;
-            this.btnPort.Click += new System.EventHandler(this.btnPort_Click_1);
             // 
             // btnOpenOrClosePort
             // 
@@ -163,18 +152,28 @@ namespace COMPortTerminal
             this.picDrawing.TabIndex = 17;
             this.picDrawing.TabStop = false;
             // 
+            // btnBlackout
+            // 
+            this.btnBlackout.Location = new System.Drawing.Point(1012, 244);
+            this.btnBlackout.Name = "btnBlackout";
+            this.btnBlackout.Size = new System.Drawing.Size(163, 47);
+            this.btnBlackout.TabIndex = 18;
+            this.btnBlackout.Text = "BLACKOUT";
+            this.btnBlackout.UseVisualStyleBackColor = true;
+            this.btnBlackout.Click += new System.EventHandler(this.btnBlackout_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1354, 684);
+            this.Controls.Add(this.btnBlackout);
             this.Controls.Add(this.picDrawing);
             this.Controls.Add(this.toolStrip1);
             this.Controls.Add(this.btnTest);
             this.Controls.Add(this.btnStartStop);
             this.Controls.Add(this.txtTimer);
             this.Controls.Add(this.btnOpenOrClosePort);
-            this.Controls.Add(this.btnPort);
             this.Controls.Add(this.ToolStripStatusLabel1);
             this.Controls.Add(this.rtbStatus);
             this.Controls.Add(this.rtbMonitor);
@@ -193,7 +192,6 @@ namespace COMPortTerminal
         internal /* TRANSINFO: WithEvents */ System.Windows.Forms.RichTextBox rtbMonitor; 
         internal /* TRANSINFO: WithEvents */ System.Windows.Forms.RichTextBox rtbStatus; 
         internal /* TRANSINFO: WithEvents */ System.Windows.Forms.StatusStrip ToolStripStatusLabel1; 
-        internal /* TRANSINFO: WithEvents */ System.Windows.Forms.Button btnPort; 
         internal /* TRANSINFO: WithEvents */ System.Windows.Forms.Button btnOpenOrClosePort; 
         internal /* TRANSINFO: WithEvents */ System.Windows.Forms.Timer tmrLookForPortChanges;
         private TextBox txtTimer;
@@ -208,6 +206,7 @@ namespace COMPortTerminal
         private System.IO.Ports.SerialPort serialPort4;
         private System.IO.Ports.SerialPort serialPort5;
         private System.IO.Ports.SerialPort serialPort6;
+        private Button btnBlackout;
     } 
     
     

@@ -53,7 +53,7 @@ namespace PanelSpace
             boardNumber= 1;
 
             for (int i = 0; i < PANELSIZE; i++)
-                arrPanelColorIndex[i] = 0x00;
+                arrPanelColorIndex[i] = BLACK_INDEX;
         }
 
         public void setOrientation(int boardNumber, byte subCommand, int orientation, int ZeroRow, int ZeroCol)
@@ -104,7 +104,7 @@ namespace PanelSpace
             return (Byte)colorInt;
         }
 
-        public void setPanelColorIndex(ref XYMatrixPoint[,] matrix)
+        public void CopyMatrixToPanel(ref XYMatrixPoint[,] matrix)
         {
             int row, col, i;
             i = 0;
@@ -133,6 +133,37 @@ namespace PanelSpace
                         arrPanelColorIndex[i++] = (byte)matrix[col, row].colorIndex;
             }
         }
+
+        public void SetPanelColor(byte ColorIndex)
+        {
+            int row, col, i;
+            i = 0;
+            if (orientation == HORIZONTAL)
+            {
+                for (row = ZeroRow; row < ZeroRow + PANELROWS; row++)
+                    for (col = ZeroCol; col < ZeroCol + PANELCOLS; col++)
+                        arrPanelColorIndex[i++] = ColorIndex;
+            }
+            else if (orientation == VERTICAL)
+            {
+                for (col = ZeroCol + PANELROWS - 1; col >= ZeroCol; col--)
+                    for (row = ZeroRow; row < row + PANELCOLS; row++)
+                        arrPanelColorIndex[i++] = ColorIndex;
+            }
+            else if (orientation == HORIZONTAL_FLIPPED)
+            {
+                for (row = ZeroRow + PANELROWS - 1; row >= ZeroRow; row--)
+                    for (col = ZeroCol + PANELCOLS + 1; col >= ZeroCol; col--)
+                        arrPanelColorIndex[i++] = ColorIndex;
+            }
+            else
+            {
+                for (col = ZeroCol; col < ZeroCol + PANELROWS; col++)
+                    for (row = ZeroRow + PANELCOLS - 1; row >= ZeroRow; row--)
+                        arrPanelColorIndex[i++] = ColorIndex;
+            }
+        }
+
     }
 }
 
